@@ -2335,6 +2335,7 @@ export default {
       nfc: 'NFC',
       scale: 'Balança',
       cpuTemp: 'Temp. CPU',
+      cpuLoad: 'Carga da CPU',
       memory: 'Memória',
       disk: 'Disco',
       update: 'Atualizar',

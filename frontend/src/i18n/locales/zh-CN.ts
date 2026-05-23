@@ -1452,6 +1452,7 @@ export default {
       nfc: 'NFC',
       scale: '秤',
       cpuTemp: 'CPU 温度',
+      cpuLoad: 'CPU 负载',
       memory: '内存',
       disk: '磁盘',
       // Device actions

@@ -1452,6 +1452,7 @@ export default {
       nfc: 'NFC',
       scale: 'Waage',
       cpuTemp: 'CPU-Temp.',
+      cpuLoad: 'CPU-Last',
       memory: 'Speicher',
       disk: 'Festplatte',
       update: 'Aktualisieren',

@@ -1453,6 +1453,7 @@ export default {
       nfc: 'NFC',
       scale: 'Scale',
       cpuTemp: 'CPU temp',
+      cpuLoad: 'CPU load',
       memory: 'Memory',
       disk: 'Disk',
       // Device actions

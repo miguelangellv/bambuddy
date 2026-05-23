@@ -1451,6 +1451,7 @@ export default {
       nfc: 'NFC',
       scale: '計量器',
       cpuTemp: 'CPU 温度',
+      cpuLoad: 'CPU 負荷',
       memory: 'メモリ',
       disk: 'ディスク',
       update: 'アップデート',
