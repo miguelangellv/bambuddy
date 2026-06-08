@@ -2206,6 +2206,7 @@ class PrintScheduler:
             layer_inspect=item.layer_inspect,
             timelapse=effective_timelapse,
             use_ams=item.use_ams,
+            nozzle_offset_cali=item.nozzle_offset_cali,
         )
 
         if started:
