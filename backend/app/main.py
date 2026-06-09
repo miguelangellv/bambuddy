@@ -349,6 +349,13 @@ _expected_prints: dict[tuple[int, str], int] = {}
 # Used by usage tracker to map 3MF slots to physical AMS trays
 _print_ams_mappings: dict[int, list[int]] = {}
 
+# Track plate_id for prints from multi-plate 3MFs: {archive_id: plate_id}
+# Used by usage tracker to scope 3MF parsing to the dispatched plate (#1697).
+# Populated by direct-Print and queue dispatch paths; queue prints also have a
+# redundant queue-item lookup in on_print_start so this dict isn't load-bearing
+# for the queue path. Cleared on print completion or TTL eviction.
+_print_plate_ids: dict[int, int] = {}
+
 # Track progress milestones for notifications: {printer_id: last_milestone_notified}
 # Milestones are 25, 50, 75. Value of 0 means no milestone notified yet for current print.
 _last_progress_milestone: dict[int, int] = {}
@@ -567,6 +574,7 @@ def register_expected_print(
     archive_id: int,
     ams_mapping: list[int] | None = None,
     created_by_id: int | None = None,
+    plate_id: int | None = None,
 ):
     """Register an expected print from reprint/scheduled so we don't create duplicate archives."""
     # Store with multiple filename variations to catch different naming patterns
@@ -579,6 +587,11 @@ def register_expected_print(
     # Store AMS mapping for usage tracking at print completion
     if ams_mapping is not None:
         _print_ams_mappings[archive_id] = ams_mapping
+    # Store plate_id for usage tracking when this is a single-plate dispatch from
+    # a multi-plate 3MF — without this, the direct-Print path attributes the whole
+    # file's filament total to the spool instead of just the printed plate (#1697).
+    if plate_id is not None:
+        _print_plate_ids[archive_id] = plate_id
     # Store created_by_id so the user start email can be sent even when the archive
     # itself has no created_by_id (e.g. library-file-based queue prints)
     if created_by_id is not None:
@@ -595,7 +608,7 @@ def register_expected_print(
         _expected_print_registered_at[(printer_id, base)] = _registered_at
         _expected_print_registered_at[(printer_id, f"{base}.gcode")] = _registered_at
     logging.getLogger(__name__).info(
-        f"Registered expected print: printer={printer_id}, file={filename}, archive={archive_id}, ams_mapping={ams_mapping}"
+        f"Registered expected print: printer={printer_id}, file={filename}, archive={archive_id}, ams_mapping={ams_mapping}, plate_id={plate_id}"
     )
 
 
@@ -637,6 +650,19 @@ def _get_start_ams_mapping(data: dict, archive_id: int | None) -> list[int] | No
     if not stored_ams_mapping and archive_id:
         stored_ams_mapping = _print_ams_mappings.get(archive_id)
     return stored_ams_mapping
+
+
+def _get_start_plate_id(archive_id: int | None) -> int | None:
+    """Resolve plate_id for print start without consuming stored direct-Print state.
+
+    Direct-Print of a single plate from a multi-plate 3MF registers plate_id in
+    ``_print_plate_ids`` at dispatch time; this lets the spoolman / usage tracker
+    read it back at print-start without popping (the entry is popped on print
+    completion or TTL eviction, mirroring ``_print_ams_mappings``).
+    """
+    if archive_id is None:
+        return None
+    return _print_plate_ids.get(archive_id)
 
 
 def _extract_filament_data_from_mqtt(data: dict, ams_mapping: list[int] | None = None) -> dict[str, str]:
@@ -2215,14 +2241,21 @@ async def on_print_start(printer_id: int, data: dict):
                 # before expected-print promotion, so it may have ams_mapping=None when
                 # the MQTT request topic subscription failed (common on P1S/A1).
                 _stored_map = _print_ams_mappings.get(expected_archive_id)
-                if _stored_map:
+                _stored_plate_id = _print_plate_ids.get(expected_archive_id)
+                if _stored_map or _stored_plate_id is not None:
                     try:
                         from backend.app.services.usage_tracker import _active_sessions
 
                         _ut_session = _active_sessions.get(printer_id)
-                        if _ut_session and not _ut_session.ams_mapping:
+                        if _ut_session and _stored_map and not _ut_session.ams_mapping:
                             _ut_session.ams_mapping = _stored_map
                             logger.info("[CALLBACK] Injected ams_mapping into usage tracker session: %s", _stored_map)
+                        # plate_id injection covers direct-Print of plate N of a multi-plate
+                        # 3MF — queue prints already capture it via the on_print_start queue
+                        # lookup, but direct-Print never goes through the queue (#1697).
+                        if _ut_session and _stored_plate_id is not None and _ut_session.plate_id is None:
+                            _ut_session.plate_id = _stored_plate_id
+                            logger.info("[CALLBACK] Injected plate_id into usage tracker session: %s", _stored_plate_id)
                     except Exception:
                         pass
 
@@ -2265,6 +2298,7 @@ async def on_print_start(printer_id: int, data: dict):
                         db,
                         printer_manager,
                         ams_mapping=_get_start_ams_mapping(data, archive.id),
+                        plate_id=_get_start_plate_id(archive.id),
                     )
                 except Exception as e:
                     logger.warning("[SPOOLMAN] Failed to store tracking data: %s", e)
@@ -2798,6 +2832,7 @@ async def on_print_start(printer_id: int, data: dict):
                         db,
                         printer_manager,
                         ams_mapping=_get_start_ams_mapping(data, fallback_archive.id),
+                        plate_id=_get_start_plate_id(fallback_archive.id),
                     )
                 except Exception as e:
                     logger.debug("[SPOOLMAN] Could not store tracking for fallback archive: %s", e)
@@ -2899,6 +2934,7 @@ async def on_print_start(printer_id: int, data: dict):
                         db,
                         printer_manager,
                         ams_mapping=_get_start_ams_mapping(data, archive.id),
+                        plate_id=_get_start_plate_id(archive.id),
                     )
                 except Exception as e:
                     logger.warning("[SPOOLMAN] Failed to store tracking data: %s", e)
@@ -3922,6 +3958,12 @@ async def on_print_complete(printer_id: int, data: dict):
     # Fallback to _print_ams_mappings for queue/reprint (set before print starts)
     if not stored_ams_mapping and archive_id:
         stored_ams_mapping = _print_ams_mappings.pop(archive_id, None)
+
+    # Always drain the plate_id register on completion — the session already
+    # consumed it at print-start injection; leaving it would leak into the next
+    # print on the same archive_id (rare but possible with reprints) (#1697).
+    if archive_id:
+        _print_plate_ids.pop(archive_id, None)
 
     # Internal inventory: track AMS remain% deltas (skip if Spoolman handles usage)
     try:
@@ -5126,12 +5168,14 @@ def _evict_stale_expected_prints() -> None:
         _expected_print_creators.pop(key, None)
         _expected_print_registered_at.pop(key, None)
 
-    # Also clean up _print_ams_mappings for archive_ids that have no remaining
-    # live keys in _expected_prints (i.e. all variants were just evicted).
+    # Also clean up _print_ams_mappings and _print_plate_ids for archive_ids
+    # that have no remaining live keys in _expected_prints (all variants
+    # were just evicted).
     live_archive_ids = set(_expected_prints.values())
     for archive_id in evicted_archive_ids:
         if archive_id not in live_archive_ids:
             _print_ams_mappings.pop(archive_id, None)
+            _print_plate_ids.pop(archive_id, None)
 
     logging.getLogger(__name__).info(
         "Evicted %d stale expected-print entries (TTL=%ds)", len(stale_keys), _EXPECTED_PRINT_TTL_SECONDS

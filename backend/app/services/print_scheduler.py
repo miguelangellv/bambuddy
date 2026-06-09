@@ -2143,6 +2143,7 @@ class PrintScheduler:
                 archive.id,
                 ams_mapping=ams_mapping,
                 created_by_id=item.created_by_id,
+                plate_id=item.plate_id,
             )
 
         # Propagate the queue item's owner into printer_manager so the
