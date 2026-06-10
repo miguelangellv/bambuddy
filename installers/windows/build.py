@@ -45,10 +45,13 @@ DOWNLOADS = BUILD_DIR / "downloads"
 PYTHON_VERSION = "3.13.1"
 PYTHON_EMBED_URL = f"https://www.python.org/ftp/python/{PYTHON_VERSION}/python-{PYTHON_VERSION}-embed-amd64.zip"
 
-# NSSM 2.24 is the long-time stable build. The official site has been
-# unreliable; use the GitHub mirror that nssm.cc itself links to.
+# NSSM 2.24 is the long-time stable build (no new release since 2014).
+# Vendored under installers/windows/vendor/nssm.exe rather than fetched
+# at build time — nssm.cc has flaked with 503s mid-CI-run before, and
+# pinning to a checked-in binary makes builds reproducible and lets us
+# inspect the binary in PRs if it ever needs updating. SHA-256:
+#   f689ee9af94b00e9e3f0bb072b34caaf207f32dcb4f5782fc9ca351df9a06c97
 NSSM_VERSION = "2.24"
-NSSM_URL = f"https://nssm.cc/release/nssm-{NSSM_VERSION}.zip"
 
 # ffmpeg static build. BtbN's gyan-equivalent build is the most reliable
 # automated source. Pin to a release tag so builds are reproducible.
@@ -231,12 +234,10 @@ def stage_backend(frontend_dist: Path) -> None:
 def stage_nssm() -> None:
     target = STAGING / "bin"
     target.mkdir(parents=True, exist_ok=True)
-    zip_path = download(NSSM_URL, DOWNLOADS / f"nssm-{NSSM_VERSION}.zip")
-    extract = DOWNLOADS / f"nssm-{NSSM_VERSION}-extracted"
-    if not extract.exists():
-        unzip(zip_path, extract)
-    # The zip nests as nssm-2.24/win64/nssm.exe
-    src = next(extract.rglob("win64/nssm.exe"))
+    # Vendored binary — no network fetch at build time
+    src = INSTALLER_DIR / "vendor" / "nssm.exe"
+    if not src.exists():
+        raise RuntimeError(f"vendored NSSM binary missing at {src} — was it committed?")
     log(f"staging nssm.exe from {src}")
     shutil.copy(src, target / "nssm.exe")
 
