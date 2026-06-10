@@ -26,6 +26,7 @@ to produce the final installer .exe under ``build/output/``.
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -267,26 +268,54 @@ def stage_service_scripts() -> None:
     shutil.copytree(service_src, service_dst)
 
 
+def _read_app_version() -> str:
+    """Read APP_VERSION from backend/app/core/config.py (the canonical
+    source used by every other Bambuddy surface — FastAPI OpenAPI title,
+    /system info, support bundles, spoolbuddy update check).
+    """
+    config_py = REPO_ROOT / "backend" / "app" / "core" / "config.py"
+    if not config_py.exists():
+        return "0.0.0+dev"
+    for raw in config_py.read_text().splitlines():
+        stripped = raw.strip()
+        if stripped.startswith("APP_VERSION"):
+            # APP_VERSION = "0.2.5b1"  ->  0.2.5b1
+            return stripped.split("=", 1)[1].strip().strip('"').strip("'")
+    return "0.0.0+dev"
+
+
+def _resolve_installer_version() -> str:
+    """Decide what version string the installer carries.
+
+    Priority:
+      1. ``GITHUB_REF`` env var when set to a tag (e.g.
+         ``refs/tags/v0.2.5b1-daily.20260610``) — the daily-beta and stable
+         publish scripts both push tags in the ``v<APP_VERSION>[-daily.<date>]``
+         shape, and we want the installer filename + Inno Setup AppVersion
+         to match the GitHub release exactly so dailies stay distinguishable
+         from each other and from the eventual stable.
+      2. ``APP_VERSION`` from config.py for manual workflow_dispatch runs
+         (no tag) and for local builds.
+
+    Strips the leading ``v`` from tags so the installer filename is
+    ``bambuddy-0.2.5b1-daily.20260610-windows-x64-setup.exe``, not
+    ``bambuddy-v0.2.5b1-...``.
+    """
+    ref = os.environ.get("GITHUB_REF", "")
+    if ref.startswith("refs/tags/"):
+        tag = ref.removeprefix("refs/tags/")
+        if tag.startswith("v"):
+            tag = tag[1:]
+        return tag or _read_app_version()
+    return _read_app_version()
+
+
 def write_version_file() -> None:
     """Write the installer version as both a plain VERSION file and an
     Inno Setup include file so the .iss script can pick it up at compile
     time without a fragile file-read hack.
-
-    Reads ``APP_VERSION`` from ``backend/app/core/config.py`` — that's the
-    canonical version used by every other surface in Bambuddy (the FastAPI
-    OpenAPI title, /system info, the support bundle, the spoolbuddy update
-    check). pyproject.toml has its own stale ``version = "0.1.5"`` that
-    isn't kept in sync; reading it would ship a wrong-versioned installer.
     """
-    version = "0.0.0+dev"
-    config_py = REPO_ROOT / "backend" / "app" / "core" / "config.py"
-    if config_py.exists():
-        for raw in config_py.read_text().splitlines():
-            stripped = raw.strip()
-            if stripped.startswith("APP_VERSION"):
-                # APP_VERSION = "0.2.5b1"  ->  0.2.5b1
-                version = stripped.split("=", 1)[1].strip().strip('"').strip("'")
-                break
+    version = _resolve_installer_version()
     (STAGING / "VERSION").write_text(version)
 
     # Inno Setup include — bambuddy.iss does `#include "build\staging\version.iss"`
