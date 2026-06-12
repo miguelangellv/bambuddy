@@ -193,7 +193,15 @@ describe('FilamentMapping — FTS routing', () => {
     expect(screen.queryByLabelText(/Force color match/i)).not.toBeInTheDocument();
   });
 
-  it('still applies the per-nozzle filter when FTS is null', async () => {
+  it('offers cross-extruder slots in the dropdown without FTS (#1722)', async () => {
+    // Before #1722 the dropdown filtered to only slots whose extruder matched
+    // the filament's slicer-assigned nozzle. On a dual-nozzle printer with one
+    // AMS per side, that prevented the user from picking a slot on the OTHER
+    // extruder even when they'd intentionally loaded the required filament
+    // there. The fix: trust the user, show every loaded slot regardless of
+    // which extruder it's wired to. The L/R badge on the filament row still
+    // tells the user what the slicer planned; the printer firmware accepts
+    // or rejects the cross-extruder ams_mapping at start-print.
     server.use(
       http.get(
         '/api/v1/printers/:id/status',
@@ -219,13 +227,13 @@ describe('FilamentMapping — FTS routing', () => {
       />,
     );
 
-    // Required nozzle is 1 (LEFT) but AMS 0 is on extruder 0 (RIGHT) — neither
-    // slot should appear in the dropdown.
+    // Required nozzle is 1 (LEFT) and AMS 0 is wired to extruder 0 (RIGHT).
+    // Both slots must STILL appear so the user can pick them — explicitly the
+    // cross-extruder scenario the #1722 fix unblocks.
     await waitFor(() => {
-      // Wait for component to render — the slot label should NOT be present
-      expect(screen.queryByText(/Bambu PLA/)).not.toBeInTheDocument();
-      expect(screen.queryByText(/Bambu PETG/)).not.toBeInTheDocument();
+      expect(screen.getByText(/Bambu PLA/)).toBeInTheDocument();
     });
+    expect(screen.getByText(/Bambu PETG/)).toBeInTheDocument();
   });
 
   it('renders sub-brand + material-disambiguated colour on the required side (#1718)', async () => {

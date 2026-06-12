@@ -245,14 +245,20 @@ export function FilamentMapping({
                   <option value="" className="bg-bambu-dark text-bambu-gray">
                     -- Select slot --
                   </option>
-                  {loadedFilaments
-                    .filter(
-                      (f) =>
-                        item.nozzle_id == null ||
-                        ftsInstalled ||
-                        f.extruderId === item.nozzle_id,
-                    )
-                    .map((f) => {
+                  {/*
+                    #1722: every loaded slot is offered for every filament row,
+                    regardless of which extruder the slot is wired to. Before this
+                    change a slot was only listed when its extruder matched the
+                    filament's slicer-assigned nozzle (item.nozzle_id), which
+                    locked users out of cross-extruder picks even when they'd
+                    intentionally loaded the required filament into the "other"
+                    AMS. The L/R badge on the filament row still tells the user
+                    what the slicer planned; the dropdown now trusts the user to
+                    pick based on their physical setup. Printer firmware accepts
+                    or rejects the ams_mapping at start-print — failure is loud,
+                    not silent.
+                  */}
+                  {loadedFilaments.map((f) => {
                       const remainingWeight = trayRemainingWeightMap.get(f.globalTrayId);
                       const remainingLabel = remainingWeight != null
                         ? t('printModal.slotRemainingShort', {
