@@ -248,6 +248,8 @@ class SpoolAssignmentResponse(BaseModel):
 
 
 class PendingSlotAssignmentCreateRequest(BaseModel):
+    """Pending create response."""
+
     spool_id: int | None = None
     tray_uuid: str | None = None
     tag_uid: str | None = None

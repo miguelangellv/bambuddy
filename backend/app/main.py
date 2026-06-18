@@ -1593,7 +1593,14 @@ async def on_ams_change(printer_id: int, ams_data: list):
                                 try_complete_pending_assignments,
                             )
 
-                            if await try_complete_pending_assignments(db, printer_id, ams_id, tray_id):
+                            if await try_complete_pending_assignments(
+                                db=db,
+                                printer_id=printer_id,
+                                ams_id=ams_id,
+                                tray_id=tray_id,
+                                slot_tray_uuid=tray_uuid or None,
+                                slot_tag_uid=tag_uid or None,
+                            ):
                                 logger.info(
                                     "Pending slot assignment completed for printer %d AMS%d-T%d",
                                     printer_id,

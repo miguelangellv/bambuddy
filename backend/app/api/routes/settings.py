@@ -446,10 +446,7 @@ async def update_spoolman_settings(
     if "spoolman_report_partial_usage" in settings:
         await set_setting(db, "spoolman_report_partial_usage", settings["spoolman_report_partial_usage"])
 
-    spoolman_changed = (
-        "spoolman_enabled" in settings
-        or "spoolman_url" in settings
-    )
+    spoolman_changed = "spoolman_enabled" in settings or "spoolman_url" in settings
 
     await db.commit()
     db.expire_all()

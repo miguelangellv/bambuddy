@@ -6,6 +6,7 @@ AMS slot transitions, timeout expiry, cancellation, and event broadcasting.
 
 import asyncio
 import logging
+import re
 from datetime import datetime, timezone
 
 from sqlalchemy import func, or_, select
@@ -20,6 +21,15 @@ logger = logging.getLogger(__name__)
 # In-memory set of active timeout tasks keyed by assignment ID so they can be
 # cancelled if the assignment completes or is explicitly cancelled.
 _timeout_tasks: dict[int, asyncio.Task] = {}
+
+
+# Firmware reports these sentinel values for "no tag" / "no UUID" — treat
+# them the same as None / empty-string when checking slot identity.
+def _is_valid_identifier(value: str | None) -> bool:
+    """Return True if the identifier is non-empty and not an all-zeros sentinel."""
+    if not value:
+        return False
+    return re.fullmatch(r"0+", value) is None
 
 
 async def _resolve_spool(
@@ -91,7 +101,7 @@ async def create_pending_assignment(
             return found_spool
 
     # Resolve spool_id from tray_uuid or tag_uid
-    spool = await _resolve_spool(db, spool_id, tray_uuid, tag_uid)
+    spool = await _resolve_spool(db=db, spool_id=spool_id, tray_uuid=tray_uuid, tag_uid=tag_uid)
 
     assignment = PendingSlotAssignment(
         tray_uuid=tray_uuid,
@@ -107,7 +117,7 @@ async def create_pending_assignment(
     await db.refresh(assignment)
 
     # Schedule timeout task
-    _schedule_timeout(assignment.id, timeout_seconds)
+    _schedule_timeout(assignment_id=assignment.id, timeout_seconds=timeout_seconds)
 
     logger.info(
         "Created pending slot assignment %d for spool_id=%d tray_uuid=%s tag_uid=%s printer=%s source=%s timeout=%ds",
@@ -125,7 +135,7 @@ async def create_pending_assignment(
 
 def _schedule_timeout(assignment_id: int, timeout_seconds: int) -> None:
     """Schedule an asyncio task to expire the assignment after timeout."""
-    task = asyncio.ensure_future(_expire_assignment(assignment_id, timeout_seconds))
+    task = asyncio.ensure_future(_expire_assignment(assignment_id=assignment_id, timeout_seconds=timeout_seconds))
     _timeout_tasks[assignment_id] = task
     task.add_done_callback(lambda _: _timeout_tasks.pop(assignment_id, None))
 
@@ -213,16 +223,59 @@ async def get_pending_assignment(db: AsyncSession, assignment_id: int) -> Pendin
     return result.scalar_one_or_none()
 
 
+def _identifiers_match(
+    assignment: PendingSlotAssignment,
+    slot_tray_uuid: str | None,
+    slot_tag_uid: str | None,
+) -> bool:
+    """Return True if the pending assignment's identifiers match the slot's live spool.
+
+    Matching rules (case-insensitive):
+    - If the assignment has a tray_uuid AND the slot reports one, they must match.
+    - If the assignment has a tag_uid AND the slot reports one, they must match.
+    - At least one identifier must be present on both sides for a positive match.
+    - All-zeros sentinels are treated as absent (not a valid identifier).
+    """
+    matched = False
+
+    has_assignment_uuid = _is_valid_identifier(assignment.tray_uuid)
+    has_slot_uuid = _is_valid_identifier(slot_tray_uuid)
+    has_assignment_tag = _is_valid_identifier(assignment.tag_uid)
+    has_slot_tag = _is_valid_identifier(slot_tag_uid)
+
+    if has_assignment_uuid and has_slot_uuid:
+        if assignment.tray_uuid.upper() == slot_tray_uuid.upper():
+            matched = True
+        else:
+            return False  # Explicit mismatch
+
+    if has_assignment_tag and has_slot_tag:
+        if assignment.tag_uid.upper() == slot_tag_uid.upper():
+            matched = True
+        else:
+            return False  # Explicit mismatch
+
+    return matched
+
+
 async def try_complete_pending_assignments(
     db: AsyncSession,
     printer_id: int,
     ams_id: int,
     tray_id: int,
+    *,
+    slot_tray_uuid: str | None = None,
+    slot_tag_uid: str | None = None,
 ) -> bool:
     """Check if any pending assignment should be completed for this slot.
 
     Called from the AMS change handler when a slot transitions from empty → filled.
     Returns True if a pending assignment was completed.
+
+    The slot_tray_uuid / slot_tag_uid come from the live AMS tray data and are
+    used to verify that the physically-inserted spool matches the pending
+    request — preventing silent inventory corruption when a user inserts a
+    different spool than the one they scanned.
     """
     # Find pending assignments that match this printer (or any printer)
     result = await db.execute(
@@ -238,13 +291,38 @@ async def try_complete_pending_assignments(
     if not pending_assignments:
         return False
 
-    # Take the oldest pending assignment (FIFO)
-    assignment = pending_assignments[0]
+    # Find the first pending assignment whose identifiers match the slot's
+    # live spool. If the slot provides tray_uuid or tag_uid we require a match;
+    # if the slot has no identifiers (3rd-party spool / no RFID) fall back to
+    # FIFO for backwards compatibility.
+    assignment: PendingSlotAssignment | None = None
+    slot_has_identifier = _is_valid_identifier(slot_tray_uuid) or _is_valid_identifier(slot_tag_uid)
+
+    if slot_has_identifier:
+        for candidate in pending_assignments:
+            if _identifiers_match(assignment=candidate, slot_tray_uuid=slot_tray_uuid, slot_tag_uid=slot_tag_uid):
+                assignment = candidate
+                break
+        if assignment is None:
+            # No pending assignment matches the spool actually inserted
+            logger.info(
+                "No pending assignment matches slot identifiers "
+                "(slot_tray_uuid=%s slot_tag_uid=%s) for printer %d AMS%d-T%d, skipping",
+                slot_tray_uuid,
+                slot_tag_uid,
+                printer_id,
+                ams_id,
+                tray_id,
+            )
+            return False
+    else:
+        # No slot identifier available (generic/3rd-party spool) — FIFO
+        assignment = pending_assignments[0]
 
     # Resolve the spool if not already resolved
     spool_id = assignment.spool_id
     if not spool_id:
-        spool = await _resolve_spool(db, assignment.tray_uuid, assignment.tag_uid)
+        spool = await _resolve_spool(db=db, spool_id=None, tray_uuid=assignment.tray_uuid, tag_uid=assignment.tag_uid)
         if spool:
             spool_id = spool.id
             assignment.spool_id = spool_id
@@ -368,7 +446,7 @@ async def restore_pending_timeouts() -> None:
                 # Already expired — mark it
                 assignment.status = "timed_out"
             else:
-                _schedule_timeout(assignment.id, int(remaining))
+                _schedule_timeout(assignment_id=assignment.id, timeout_seconds=int(remaining))
         if pending:
             await db.commit()
             logger.info(
