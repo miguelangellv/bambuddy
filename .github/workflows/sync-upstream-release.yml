@@ -1,0 +1,138 @@
+name: Sync Upstream Release
+
+on:
+  schedule:
+    # Comprobar cada hora si hay nueva release en upstream
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      force_tag:
+        description: 'Forzar sync de un tag específico (ej: v1.2.0). Dejar vacío para detectar automáticamente.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  check-and-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get latest upstream release
+        id: upstream
+        run: |
+          if [ -n "${{ github.event.inputs.force_tag }}" ]; then
+            TAG="${{ github.event.inputs.force_tag }}"
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+            echo "name=$TAG" >> $GITHUB_OUTPUT
+            echo "new_release=true" >> $GITHUB_OUTPUT
+          else
+            RELEASE=$(curl -s "https://api.github.com/repos/maziggy/bambuddy/releases/latest")
+            TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+            NAME=$(echo "$RELEASE" | jq -r '.name')
+            PRERELEASE=$(echo "$RELEASE" | jq -r '.prerelease')
+
+            if [ "$PRERELEASE" = "true" ] || [ "$TAG" = "null" ]; then
+              echo "No valid release found or is pre-release. Skipping."
+              echo "new_release=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+            echo "name=$NAME" >> $GITHUB_OUTPUT
+            echo "new_release=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if release already exists in fork
+        if: steps.upstream.outputs.new_release == 'true'
+        id: check_existing
+        run: |
+          TAG="${{ steps.upstream.outputs.tag }}"
+          FORK_TAG="${TAG}-custom"
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${FORK_TAG}")
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "Release ${FORK_TAG} already exists. Skipping."
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Release ${FORK_TAG} does not exist. Proceeding."
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout fork
+        if: steps.upstream.outputs.new_release == 'true' && steps.check_existing.outputs.exists == 'false'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        if: steps.upstream.outputs.new_release == 'true' && steps.check_existing.outputs.exists == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote and fetch
+        if: steps.upstream.outputs.new_release == 'true' && steps.check_existing.outputs.exists == 'false'
+        run: |
+          git remote add upstream https://github.com/maziggy/bambuddy.git
+          git fetch upstream --tags
+
+      - name: Create merged branch from upstream tag + custom branch
+        if: steps.upstream.outputs.new_release == 'true' && steps.check_existing.outputs.exists == 'false'
+        id: merge
+        run: |
+          TAG="${{ steps.upstream.outputs.tag }}"
+          CUSTOM_BRANCH="feature/auto-assign-spool-to-next-ams-slot"
+          MERGE_BRANCH="release/${TAG}-custom"
+
+          # Crear rama a partir del tag de upstream
+          git checkout -b "$MERGE_BRANCH" "upstream/$TAG" 2>/dev/null || git checkout -b "$MERGE_BRANCH" "$TAG"
+
+          # Hacer merge de la rama personalizada
+          git fetch origin "$CUSTOM_BRANCH"
+          if git merge "origin/$CUSTOM_BRANCH" --no-edit -m "Merge $CUSTOM_BRANCH into upstream $TAG"; then
+            echo "merge_success=true" >> $GITHUB_OUTPUT
+            echo "merge_branch=$MERGE_BRANCH" >> $GITHUB_OUTPUT
+          else
+            echo "::error::Merge conflict detected. Manual intervention required."
+            git merge --abort
+            echo "merge_success=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Push merged branch
+        if: steps.upstream.outputs.new_release == 'true' && steps.check_existing.outputs.exists == 'false' && steps.merge.outputs.merge_success == 'true'
+        run: |
+          MERGE_BRANCH="${{ steps.merge.outputs.merge_branch }}"
+          git push origin "$MERGE_BRANCH" --force
+
+      - name: Create tag and release
+        if: steps.upstream.outputs.new_release == 'true' && steps.check_existing.outputs.exists == 'false' && steps.merge.outputs.merge_success == 'true'
+        run: |
+          TAG="${{ steps.upstream.outputs.tag }}"
+          FORK_TAG="${TAG}-autoamsslot"
+          UPSTREAM_NAME="${{ steps.upstream.outputs.name }}-autoamsslot"
+          MERGE_BRANCH="${{ steps.merge.outputs.merge_branch }}"
+
+          # Crear tag
+          git tag "$FORK_TAG"
+          git push origin "$FORK_TAG"
+
+          # Crear release
+          curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/releases" \
+            -d "$(jq -n \
+              --arg tag "$FORK_TAG" \
+              --arg name "$UPSTREAM_NAME (+ auto-assign-spool-to-next-ams-slot)" \
+              --arg body "## Synced from upstream release \`$TAG\`\n\nThis release is based on [upstream $TAG](https://github.com/maziggy/bambuddy/releases/tag/$TAG) with the \`feature/auto-assign-spool-to-next-ams-slot\` branch merged on top.\n\n---\n\n**Branch:** \`$MERGE_BRANCH\`\n**Upstream tag:** \`$TAG\`" \
+              --arg target "$MERGE_BRANCH" \
+              '{tag_name: $tag, name: $name, body: $body, target_commitish: $target, draft: false, prerelease: false}'
+            )"
+
+          echo "✅ Release $FORK_TAG created successfully!"
+
