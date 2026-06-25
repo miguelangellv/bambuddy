@@ -540,6 +540,7 @@ export default {
       startingDrying: 'Kurutma başlatılıyor...',
       stoppingDrying: 'Kurutma durduruluyor...',
       rotateTray: 'Kurutma sırasında makarayı döndür',
+      rotateUnavailableReason: 'Kullanılamaz — bu AMS\'nin bir yuvası kafaya doğru yüklenmiş durumda. Makara besleme borusu tarafından kilitlendiği için döndürülemez. Önce filamenti geri çekin.',
     },
     amsBackup: {
       titleOn: 'AMS Filament Backup AÇIK. Devre dışı bırakmak için tıklayın.',
@@ -2015,6 +2016,8 @@ export default {
     queueDryingBlockDescription: 'Kurutma bitene kadar baskı kuyruğunu engelle. Kapalıyken, baskılar kurutmadan önceliklidir.',
     ambientDryingEnabled: 'Ortam kurutma',
     ambientDryingEnabledDescription: 'Kuyrukta baskı olmasa bile, nem eşiği aştığında boşta yazıcılarda filamenti otomatik olarak kurut.',
+    printDryingEnabled: 'Baskı sırasında kurutmaya devam et',
+    printDryingEnabledDescription: 'Desteklenen donanımda (H2D, H2C, H2S, P2S, H2D Pro, X2D, X1C, A2L güncel firmware ile) baskı sırasında otomatik kurutmanın çalışmaya devam etmesine izin verir. Makara koruması için kurutma sıcaklığı otomatik olarak boştaki ön ayarın 5°C altına sınırlandırılır.',
     dryingPresets: 'Kurutma Ön Ayarları',
     dryingPresetsDescription: 'Filament türü başına sıcaklık ve süre. AMS 2 Pro daha düşük sıcaklıklar kullanır, AMS-HT daha yüksek sıcaklıkları destekler.',
     dryingFilament: 'Filament',

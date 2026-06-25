@@ -540,6 +540,7 @@ export default {
       startingDrying: 'Iniciando el secado...',
       stoppingDrying: 'Deteniendo el secado...',
       rotateTray: 'Girar la bobina durante el secado',
+      rotateUnavailableReason: 'No disponible — un slot de este AMS está cargado hacia el cabezal. La bobina está bloqueada por el tubo de alimentación y no puede girar. Retira el filamento primero.',
     },
     amsBackup: {
       titleOn: 'AMS Filament Backup está ACTIVADO. Haz clic para desactivar.',
@@ -2015,6 +2016,8 @@ export default {
     queueDryingBlockDescription: 'Bloquear la cola de impresión hasta que termine el secado. Cuando está desactivado, las impresiones tienen prioridad sobre el secado.',
     ambientDryingEnabled: 'Secado ambiental',
     ambientDryingEnabledDescription: 'Secar automáticamente el filamento en impresoras inactivas cuando la humedad supera el umbral, incluso sin impresiones en cola.',
+    printDryingEnabled: 'Continuar secado durante la impresión',
+    printDryingEnabledDescription: 'Permite que el secado automático siga funcionando durante una impresión en hardware compatible (H2D, H2C, H2S, P2S, H2D Pro, X2D, X1C, A2L con firmware reciente). La temperatura de secado se limita automáticamente 5°C por debajo del preajuste en reposo para proteger las bobinas.',
     dryingPresets: 'Preajustes de secado',
     dryingPresetsDescription: 'Temperatura y duración por tipo de filamento. El AMS 2 Pro usa temperaturas más bajas; el AMS-HT admite temperaturas más altas.',
     dryingFilament: 'Filamento',

@@ -6371,19 +6371,41 @@ function PrinterCard({
                     <span>24h</span>
                   </div>
                 </div>
-                {/* Rotate tray */}
-                <button
-                  type="button"
-                  onClick={() => setDryingRotateTray(enabled => !enabled)}
-                  aria-pressed={dryingRotateTray}
-                  className={`h-8 w-full rounded-lg border px-2 text-sm font-medium transition-colors ${
-                    dryingRotateTray
-                      ? 'bg-bambu-green border-bambu-green text-white'
-                      : 'bg-bambu-dark border-bambu-dark-tertiary text-white hover:bg-bambu-dark-tertiary'
-                  }`}
-                >
-                  {t('printers.drying.rotateTray')}
-                </button>
+                {/* Rotate tray — disabled when any tray in THIS AMS has its
+                    filament threaded out into the feed tube. The whole AMS
+                    rotates as one mechanism (all 4 spools turn together), so a
+                    single loaded slot locks the entire unit. Bambu per-tray
+                    `state`: 9 = empty, 10 = spool present but not loaded
+                    (rotation possible), 11 = loaded into tube (rotation impossible).
+                    Catches both mid-print (active feed) AND idle-with-threaded-
+                    filament — the H2D's post-print state leaves filament in the
+                    tube but tray_now resets to 255, which a tray_now-only check
+                    would silently miss. */}
+                {(() => {
+                  const targetAms = dryingPopoverAmsId !== null
+                    ? amsData.find(a => a.id === dryingPopoverAmsId)
+                    : undefined;
+                  const trayLoadedInThisAms = (targetAms?.tray ?? []).some(
+                    tray => tray.state === 11,
+                  );
+                  const rotateChecked = dryingRotateTray && !trayLoadedInThisAms;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => setDryingRotateTray(enabled => !enabled)}
+                      aria-pressed={rotateChecked}
+                      disabled={trayLoadedInThisAms}
+                      title={trayLoadedInThisAms ? t('printers.drying.rotateUnavailableReason') : undefined}
+                      className={`h-8 w-full rounded-lg border px-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                        rotateChecked
+                          ? 'bg-bambu-green border-bambu-green text-white'
+                          : 'bg-bambu-dark border-bambu-dark-tertiary text-white hover:bg-bambu-dark-tertiary disabled:hover:bg-bambu-dark'
+                      }`}
+                    >
+                      {t('printers.drying.rotateTray')}
+                    </button>
+                  );
+                })()}
               </div>
               <div className="shrink-0 h-px bg-bambu-dark-tertiary" />
               {/* Footer */}
@@ -6391,7 +6413,23 @@ function PrinterCard({
                 <button
                   onClick={() => {
                     if (dryingPopoverAmsId !== null) {
-                      startDryingMutation.mutate({ amsId: dryingPopoverAmsId, temp: dryingTemp, duration: dryingDuration, filament: dryingFilament, rotateTray: dryingRotateTray });
+                      // Clamp rotateTray off when any tray in this AMS is loaded into
+                      // the tube — the rotate UI is disabled there, but the state may
+                      // linger as `true` from a previous AMS, or a print may have
+                      // started while the popover was open. Without this clamp the
+                      // Start payload would carry rotate_tray=true and firmware would
+                      // reject with dry_sf_reason=[3] (ConsumableAtAmsOutlet).
+                      const targetAms = amsData.find(a => a.id === dryingPopoverAmsId);
+                      const trayLoadedInThisAms = (targetAms?.tray ?? []).some(
+                        tray => tray.state === 11,
+                      );
+                      startDryingMutation.mutate({
+                        amsId: dryingPopoverAmsId,
+                        temp: dryingTemp,
+                        duration: dryingDuration,
+                        filament: dryingFilament,
+                        rotateTray: dryingRotateTray && !trayLoadedInThisAms,
+                      });
                     }
                   }}
                   disabled={startDryingMutation.isPending}

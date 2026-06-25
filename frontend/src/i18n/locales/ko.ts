@@ -502,7 +502,8 @@ export default {
       powerRequired: '건조를 활성화하려면 AMS 전원 어댑터를 연결하세요',
       startingDrying: '건조 시작 중...',
       stoppingDrying: '건조 정지 중...',
-      rotateTray: '건조 중 스풀 회전'
+      rotateTray: '건조 중 스풀 회전',
+      rotateUnavailableReason: '사용할 수 없음 — 이 AMS의 슬롯이 툴헤드로 로드되어 있습니다. 스풀이 공급 튜브에 의해 고정되어 회전할 수 없습니다. 먼저 필라멘트를 뺀 후 다시 시도하십시오.'
     },
     amsBackup: {
       titleOn: 'AMS 필라멘트 백업이 켜져 있습니다. 비활성화하려면 클릭하세요.',
@@ -1894,6 +1895,8 @@ export default {
     queueDryingBlockDescription: '건조가 완료될 때까지 인쇄 대기열을 차단합니다. 끄면 인쇄가 건조보다 우선합니다.',
     ambientDryingEnabled: '주변 건조',
     ambientDryingEnabledDescription: '대기 중인 인쇄가 없어도 습도가 임계값을 초과하면 유휴 프린터에서 자동으로 필라멘트 건조',
+    printDryingEnabled: '인쇄 중 건조 계속',
+    printDryingEnabledDescription: '지원되는 하드웨어(H2D, H2C, H2S, P2S, H2D Pro, X2D, X1C, A2L 최신 펌웨어)에서 인쇄 중에도 자동 건조를 계속 실행합니다. 스풀 보호를 위해 건조 온도가 유휴 프리셋보다 자동으로 5°C 낮게 제한됩니다.',
     dryingPresets: '건조 프리셋',
     dryingPresetsDescription: '필라멘트 유형별 온도 및 시간. AMS 2 Pro는 낮은 온도, AMS-HT는 높은 온도를 지원합니다.',
     dryingFilament: '필라멘트',

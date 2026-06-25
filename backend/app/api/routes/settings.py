@@ -128,6 +128,7 @@ async def _build_settings_response(db: AsyncSession, is_api_key: bool = False) -
             "queue_drying_enabled",
             "queue_drying_block",
             "ambient_drying_enabled",
+            "print_drying_enabled",
             "require_plate_clear",
             "queue_shortest_first",
             "default_bed_levelling",

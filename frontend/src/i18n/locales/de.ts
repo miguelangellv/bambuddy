@@ -540,6 +540,7 @@ export default {
       startingDrying: 'Trocknung wird gestartet...',
       stoppingDrying: 'Trocknung wird gestoppt...',
       rotateTray: 'Spule während der Trocknung drehen',
+      rotateUnavailableReason: 'Nicht verfügbar — in diesem AMS ist ein Slot zum Druckkopf hin geladen. Die Spule ist durch den Zuführschlauch blockiert und kann nicht rotieren. Filament zuerst zurückziehen.',
     },
     amsBackup: {
       titleOn: 'AMS Filament Backup ist EIN. Zum Deaktivieren klicken.',
@@ -2012,6 +2013,8 @@ export default {
     queueDryingBlockDescription: 'Druckwarteschlange blockieren, bis die Trocknung abgeschlossen ist. Wenn aus, haben Drucke Vorrang.',
     ambientDryingEnabled: 'Umgebungstrocknung',
     ambientDryingEnabledDescription: 'Filament auf inaktiven Druckern automatisch trocknen, wenn die Luftfeuchtigkeit den Schwellenwert überschreitet — auch ohne Warteschlange.',
+    printDryingEnabled: 'Trocknen während des Drucks',
+    printDryingEnabledDescription: 'Automatische Trocknung auch während eines laufenden Drucks auf unterstützter Hardware (H2D, H2C, H2S, P2S, H2D Pro, X2D, X1C, A2L mit aktueller Firmware). Die Trocknungstemperatur wird zum Schutz der Spulen automatisch um 5°C unter dem Leerlaufwert begrenzt.',
     dryingPresets: 'Trocknungsvoreinstellungen',
     dryingPresetsDescription: 'Temperatur und Dauer pro Filamenttyp. AMS 2 Pro verwendet niedrigere Temperaturen, AMS-HT unterstützt höhere.',
     dryingFilament: 'Filament',

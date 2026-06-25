@@ -539,6 +539,7 @@ export default {
       startingDrying: '乾燥を開始しています...',
       stoppingDrying: '乾燥を停止しています...',
       rotateTray: '乾燥中にスプールを回転',
+      rotateUnavailableReason: '利用不可 — このAMSのスロットがツールヘッドにロードされています。スプールが供給チューブで固定されているため回転できません。先にフィラメントを引き戻してください。',
     },
     amsBackup: {
       titleOn: 'AMSフィラメントバックアップはONです。クリックして無効化します。',
@@ -2011,6 +2012,8 @@ export default {
     queueDryingBlockDescription: '乾燥が完了するまで印刷キューをブロックします。オフの場合、印刷が優先されます。',
     ambientDryingEnabled: '常時乾燥',
     ambientDryingEnabledDescription: 'キューに関係なく、アイドル状態のプリンターで湿度がしきい値を超えた場合に自動的にフィラメントを乾燥。',
+    printDryingEnabled: '印刷中も乾燥を継続',
+    printDryingEnabledDescription: '対応ハードウェア（H2D、H2C、H2S、P2S、H2D Pro、X2D、X1C、A2L、最新ファームウェア）で印刷中も自動乾燥を継続します。スプール保護のため、乾燥温度はアイドル時のプリセットより自動的に5°C低く制限されます。',
     dryingPresets: '乾燥プリセット',
     dryingPresetsDescription: 'フィラメントタイプごとの温度と時間。AMS 2 Proは低温、AMS-HTは高温に対応。',
     dryingFilament: 'フィラメント',

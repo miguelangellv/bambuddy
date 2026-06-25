@@ -333,6 +333,9 @@ class PrinterStatus(BaseModel):
     awaiting_plate_clear: bool = False
     # AMS drying support
     supports_drying: bool = False
+    # AMS "Print While Drying" — drying mid-print. Verified per Bambu wiki release notes;
+    # see _DRY_WHILE_PRINTING_MIN_FIRMWARE in printer_manager.py for the matrix.
+    supports_drying_while_printing: bool = False
     # Active chamber heater (responds to M141). True only for H2C/H2D/H2DPro/H2S/X2D.
     supports_chamber_heater: bool = False
     # Linked archive for the active print (resolved via subtask_id). Frontend uses

@@ -540,6 +540,7 @@ export default {
       startingDrying: '正在启动干燥...',
       stoppingDrying: '正在停止干燥...',
       rotateTray: '干燥时旋转料盘',
+      rotateUnavailableReason: '不可用 — 此 AMS 中有插槽已装入打印头。料盘被送料管固定，无法旋转。请先回退耗材。',
     },
     amsBackup: {
       titleOn: 'AMS 备用料盘已开启。点击以禁用。',
@@ -2013,6 +2014,8 @@ export default {
     queueDryingBlockDescription: '阻止打印队列直到干燥完成。关闭时，打印优先于干燥。',
     ambientDryingEnabled: '环境干燥',
     ambientDryingEnabledDescription: '当空闲打印机的湿度超过阈值时自动干燥耗材，无需排队打印。',
+    printDryingEnabled: '打印时继续干燥',
+    printDryingEnabledDescription: '允许自动干燥在支持的硬件（H2D、H2C、H2S、P2S、H2D Pro、X2D、X1C、A2L 最新固件）打印过程中继续运行。为保护料盘，干燥温度会自动比空闲时预设低 5°C。',
     dryingPresets: '干燥预设',
     dryingPresetsDescription: '每种耗材类型的温度和时长。AMS 2 Pro使用较低温度，AMS-HT支持较高温度。',
     dryingFilament: '耗材',

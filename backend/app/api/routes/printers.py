@@ -55,6 +55,7 @@ from backend.app.services.printer_manager import (
     supports_chamber_heater,
     supports_chamber_temp,
     supports_drying,
+    supports_drying_while_printing,
 )
 from backend.app.utils.http import build_content_disposition
 
@@ -727,6 +728,7 @@ async def get_printer_status(
         ams_filament_backup=state.ams_filament_backup if state else None,
         awaiting_plate_clear=printer_manager.is_awaiting_plate_clear(printer_id),
         supports_drying=supports_drying(printer.model, state.firmware_version),
+        supports_drying_while_printing=supports_drying_while_printing(printer.model, state.firmware_version),
         supports_chamber_heater=supports_chamber_heater(printer.model),
         current_archive_id=current_archive_id,
         current_plate_id=current_plate_id,

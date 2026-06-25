@@ -540,6 +540,7 @@ export default {
       startingDrying: '正在啟動乾燥...',
       stoppingDrying: '正在停止乾燥...',
       rotateTray: '乾燥時旋轉料盤',
+      rotateUnavailableReason: '無法使用 — 此 AMS 中有插槽已裝入列印頭。料盤被進料管固定，無法旋轉。請先退回耗材。',
     },
     amsBackup: {
       titleOn: 'AMS 備用料盤已開啟。點擊以停用。',
@@ -2013,6 +2014,8 @@ export default {
     queueDryingBlockDescription: '阻止列印佇列直到乾燥完成。關閉時，列印優先於乾燥。',
     ambientDryingEnabled: '環境乾燥',
     ambientDryingEnabledDescription: '當空閒印表機的濕度超過閾值時自動乾燥耗材，無需佇列列印。',
+    printDryingEnabled: '列印時繼續乾燥',
+    printDryingEnabledDescription: '允許自動乾燥在支援的硬體（H2D、H2C、H2S、P2S、H2D Pro、X2D、X1C、A2L 最新韌體）列印過程中繼續執行。為保護料盤，乾燥溫度會自動比閒置時的預設低 5°C。',
     dryingPresets: '乾燥預設',
     dryingPresetsDescription: '每種耗材類型的溫度和時長。AMS 2 Pro使用較低溫度，AMS-HT支援較高溫度。',
     dryingFilament: '耗材',

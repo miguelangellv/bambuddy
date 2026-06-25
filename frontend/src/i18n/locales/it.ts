@@ -540,6 +540,7 @@ export default {
       startingDrying: 'Avvio essiccazione...',
       stoppingDrying: 'Arresto essiccazione...',
       rotateTray: 'Ruota la bobina durante l\'essiccazione',
+      rotateUnavailableReason: 'Non disponibile — uno slot di questo AMS è caricato verso la testa di stampa. La bobina è bloccata dal tubo di alimentazione e non può ruotare. Ritrai prima il filamento.',
     },
     amsBackup: {
       titleOn: 'AMS Filament Backup è ATTIVO. Clicca per disabilitare.',
@@ -1968,6 +1969,8 @@ export default {
     queueDryingBlockDescription: 'Blocca la coda di stampa fino al completamento dell\'asciugatura. Se disattivato, le stampe hanno priorità.',
     ambientDryingEnabled: 'Asciugatura ambientale',
     ambientDryingEnabledDescription: 'Asciuga automaticamente il filamento sulle stampanti inattive quando l\'umidità supera la soglia, anche senza stampe in coda.',
+    printDryingEnabled: 'Asciugatura durante la stampa',
+    printDryingEnabledDescription: 'Consente all\'asciugatura automatica di continuare durante una stampa su hardware supportato (H2D, H2C, H2S, P2S, H2D Pro, X2D, X1C, A2L con firmware recente). La temperatura di asciugatura viene automaticamente limitata a 5°C sotto il preset di riposo per proteggere le bobine.',
     dryingPresets: 'Preset di asciugatura',
     dryingPresetsDescription: 'Temperatura e durata per tipo di filamento. AMS 2 Pro usa temperature più basse, AMS-HT supporta temperature più alte.',
     dryingFilament: 'Filamento',
