@@ -171,8 +171,15 @@ class HMSError:
     module: int
     severity: int  # 1=fatal, 2=serious, 3=common, 4=info
     message: str = ""
-    actions: list[str] | None = None  # List of user-facing action keys (e.g. "CHECK_FILAMENT")
-    job_id: str | None = None  # Optional job ID for actions that require it (e.g. "CHECK_ASSISTANT")
+    # User-facing remediation actions from the bundled HMS catalog (e.g. "RESUME_PRINTING",
+    # "CHECK_ASSISTANT"). Defaults to an empty list rather than None so the field always
+    # satisfies HMSErrorResponse.actions: list[str] — a future code path that builds an
+    # HMSError without explicitly passing actions can't silently land None on the schema
+    # boundary and raise ValidationError at routes/printers.py response time.
+    actions: list[str] = field(default_factory=list)
+    # The `subtask_id` snapshotted from PrinterState when this error surfaced; Bambu's
+    # HMS-aware commands echo it back as `job_id`. None for idle errors with no job.
+    job_id: str | None = None
 
 
 # HMS short codes the firmware emits during normal user-cancel sequences.

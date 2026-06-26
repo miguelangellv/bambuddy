@@ -953,7 +953,10 @@ export function HMSErrorModal({ printerName, errors, onClose, printerId, hasPerm
       job_id: data.job_id,
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['printerStatus'] });
+      // Scope the invalidation to THIS printer. The prefix form
+      // `['printerStatus']` would refresh every printer card on the page,
+      // which is wasteful when only one printer's state actually changed.
+      queryClient.invalidateQueries({ queryKey: ['printerStatus', printerId] });
       showToast(t('hmsErrors.actionSuccess', 'Action sent to printer'), 'success');
       onClose();
     },
