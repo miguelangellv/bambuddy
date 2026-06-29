@@ -6,16 +6,16 @@ import type { InventorySpool } from '../api/client';
  */
 export function spoolMatchesQuery(spool: InventorySpool, query: string): boolean {
   if (!query) return true;
-  const q = query.toLowerCase();
-  return (
-    String(spool.id).includes(q) ||
-    spool.material.toLowerCase().includes(q) ||
-    (spool.brand?.toLowerCase().includes(q) ?? false) ||
-    (spool.color_name?.toLowerCase().includes(q) ?? false) ||
-    (spool.subtype?.toLowerCase().includes(q) ?? false) ||
-    (spool.note?.toLowerCase().includes(q) ?? false) ||
-    (spool.slicer_filament_name?.toLowerCase().includes(q) ?? false) ||
-    (spool.storage_location?.toLowerCase().includes(q) ?? false)
+  const q = query.toLowerCase().split(" ");
+  return q.every((term) =>
+    String(spool.id).includes(term) ||
+    spool.material.toLowerCase().includes(term) ||
+    (spool.brand?.toLowerCase().includes(term) ?? false) ||
+    (spool.color_name?.toLowerCase().includes(term) ?? false) ||
+    (spool.subtype?.toLowerCase().includes(term) ?? false) ||
+    (spool.note?.toLowerCase().includes(term) ?? false) ||
+    (spool.slicer_filament_name?.toLowerCase().includes(term) ?? false) ||
+    (spool.storage_location?.toLowerCase().includes(term) ?? false)
   );
 }
 
