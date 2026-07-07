@@ -13,8 +13,8 @@ on:
 
 env:
   # Sufijo único para tags/releases del fork — se usa en TODOS los pasos
-  FORK_SUFFIX: autoamsslot
-  CUSTOM_BRANCH: feature/auto-assign-spool-to-next-ams-slot
+  FORK_SUFFIX: miguelangellv
+  CUSTOM_BRANCH: custom
   UPSTREAM_REPO: maziggy/bambuddy
   DOCKER_IMAGE: ghcr.io/miguelangellv/bambuddy
 
